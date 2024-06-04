@@ -25,3 +25,8 @@
 
 
 # 3D 지도 테스트
+
+### Qgis-three.js pulgin
+* Qgis Three.js pulgin 사용 데이터 불러오는데 너무 오래걸림, 데이터는 국가오픈마켓에서 구할 수 있음
+
+### Nextzen GeoJson 데이터 
