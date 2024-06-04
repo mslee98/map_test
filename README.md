@@ -21,6 +21,7 @@
 
 ### Leaflet_cluster_ex
 * Leaflet 마커 클러스터링 테스팅
+* Polygon 테스팅
 ![Document_-_Chrome_2023-03-06_16-29-24_AdobeExpress](https://user-images.githubusercontent.com/94597019/223048148-cd01df0f-83f0-4cfe-ace0-a2e5b9088892.gif)
 
 
@@ -32,3 +33,6 @@
 ### Nextzen GeoJson 데이터 
 * 위도 경도에 맞게 GeoJson 데이터를 받아와서 각 Feature(건물, 도로 등) 그림, 건물의 높이 데이터를 받아올 순 없어서 확인해봐야하며
 * 가장 최신버전임 3d_map_ex파일을 참고해서 만듬
+
+### 실내지도 테스트용(Indoor Map)
+* 실내지도 테스트용으로 자료만 참고해 뒀음
