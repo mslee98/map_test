@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <!-- 네이버 클라우드 플랫폼 -->
+    <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=dqtaxawc1d"></script>
+
+    <!-- 네이버 클라우드 지도 서브 모듈 -->
+    <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=dqtaxawc1d&submodules=geocoder"></script>
+
+    <!-- 공공 기관용 -->
+    <!-- <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?govClientId=YOUR_CLIENT_ID"></script> -->
+
+    <!-- 금융 기관용 -->
+    <!-- <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?finClientId=YOUR_CLIENT_ID"></script> -->
+
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+
+        .popup {
+            position: fixed;
+            top: 0px;
+            right: 0px;
+            width: 500px;
+            height: 100%;
+            background-color: lightgray;
+            display:block;
+        }
+
+        .popup_header {
+            width: 100%;
+            height: 100px;
+            border: 1px  solid;
+        }
+
+        .popup_content {
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .popup_list_item {
+            padding: 10px;
+            border: 1px solid;
+        }
+
+        .popup_footer {
+            position: absolute;
+            bottom: 0px;
+            width: 100%;
+            height: 100px;
+            border: 1px solid;
+        }
+
+
+    </style>
+</head>
+<body>
+    <div id="map" style="width:100%;height:1050px;"></div>
+    <div class="popup">
+        <div class="popup_header">header</div>
+        <div class="popup_content">
+            <!-- <div class="popup_list_item">
+                <div>xxx경찰서</div>
+                <div>대전광역시 xx xx xx</div>
+            </div> -->
+        </div>
+        <div class="popup_footer">footer</div>
+    </div>
+</body>
+</html>
+<script>
+
+    /**
+     * Naver 지도는 WGS84 표준을 사용한다
+     * 
+     * 지도 서비스인 Web Dynamic Map(네이버 클라우드 플랫폼)
+     * 
+     * 검색 서비스는 Naver Developers api를 사용해서 사용해야 하나봄
+     * search_test
+     * Client ID: -
+     * Client Secret: -
+     * 
+    */
+
+    window.navermap_authFailure = function () {
+        console.log("clientID 인증 확인...")
+    }
+
+    var mapOptions = {
+        center: new naver.maps.LatLng(37.3595704, 127.105399),
+        zoom: 10
+    };
+
+    var map = new naver.maps.Map('map', mapOptions);
+
+    const searchMarkerGroup = [];
+
+    let aroundPolice = []
+    let aroundPoliceMarker = []
+
+    let currentPositionMarker = new naver.maps.Marker({
+        position: new naver.maps.LatLng(37.3595704, 127.105399),
+        map: map,
+        icon: {
+            url: "./image.png",
+            size: new naver.maps.Size(50, 52),
+            origin: new naver.maps.Point(0, 0),
+            anchor: new naver.maps.Point(25, 26)
+        }
+    });
+
+    naver.maps.Event.addListener(map, 'click', (e) => {
+        
+        if(aroundPolice) {
+            aroundPolice = [];
+        }
+
+        if(aroundPoliceMarker) {
+            aroundPoliceMarker.forEach((marker) => {
+                marker.setMap(null);
+            })
+            aroundPoliceMarker = []            
+        }
+
+        // gps 데이터가 없고 테스트 모킹을 위해 클릭 좌표를 기준으로 이벤트를 방생시키겠음
+        map.setCenter(new naver.maps.LatLng(e.coord._lat, e.coord._lng))
+        // currentPositionMarker.setMap(null);
+        currentPositionMarker.setPosition(e.coord)
+
+        // 클릭 좌표를 사용자 위치로 기준시킨다고 가정하고 사용자 위치를 대한민국 주소로 받아옴
+        naver.maps.Service.reverseGeocode({
+            location: new naver.maps.LatLng(e.coord._lat, e.coord._lng)
+        }, (status, res) => {
+            if( status === naver.maps.Service.Status.OK) {
+                const result = res.result;
+                console.log(result);
+                console.log(result.items[0].addrdetail.country); //대한민국
+                console.log(result.items[0].addrdetail.dongmyun); //관양동
+                console.log(result.items[0].addrdetail.rest); // 지번
+                console.log(result.items[0].addrdetail.ri); 
+                console.log(result.items[0].addrdetail.sido); //
+                console.log("sigugun : ",result.items[0].addrdetail.sigugun); //안양시 동안구 
+                
+
+                //범위를 정해야 할듯?
+                // 시군구 
+
+                // 공공데이터 포털로 제공받은 데이터를 토대로 geocoding을 사용해 주소 정보를 토대로 위,경도로 변환해 데이터에 추가해 줌
+                fetch('./police.json')
+                    .then(response => response.json())
+                    .then(jsonData => {
+                        jsonData.forEach((police) => {
+                            
+                            let searchData = result.items[0].addrdetail.sido + result.items[0].addrdetail.sigugun;
+                            
+                            let marker;
+
+                            // 시군구를 기준으로 작성함
+                            if(police.address.replace(/\s/g, "").indexOf(searchData.replace(/\s/g, "")) > -1) {
+                                naver.maps.Service.geocode({
+                                    query: police.address
+                                }, (status, res) => {
+                                    console.log(police)
+                                    police.x = res.v2.addresses[0]?.x;
+                                    police.y = res.v2.addresses[0]?.y;
+
+                                    marker =  new naver.maps.Marker({
+                                        position: new naver.maps.LatLng(police.y, police.x),
+                                        map: map
+                                    })
+
+                                    //html 추가
+                                    const popup_content = document.querySelector('.popup_content')
+                                    
+                                    const item = document.createElement('div')
+                                    item.classList.add('popup_list_item');
+
+                                    const item_title = document.createElement('div');
+                                    item_title.innerText = `${police.시도청} ${police.관서명} ${police.구분}`
+                                    
+                                    const item_position = document.createElement('div');
+                                    item_position.innerText = `${police.address}`;
+                                    
+                                    
+                                    
+                                    item.append(item_title);
+                                    item.append(item_position);
+                                    popup_content.append(item);
+
+
+
+                                    aroundPoliceMarker.push(marker)
+
+
+                                })
+
+                                aroundPolice.push(police)
+                            }
+                        })
+
+                    })
+                    .catch((error => {
+                        console.log("error 발생",error)
+                    }))
+
+            } else {
+                console.log("error", status)
+            }
+        })
+
+    })
+
+    
+
+    /**
+     * 1번째 방식
+     * 클릭 좌표를 토대로 지역 검색을 진행하려고 했으나 
+     * 지역 검색 범주를 제한하기가 힘듬
+    */
+    function regionSearch(e) {
+        if(searchMarkerGroup.length > 0) {
+            searchMarkerGroup.forEach((marker) => {
+                marker.setMap(null);
+                searchMarkerGroup.unshift();
+            })
+        }
+
+        map.setCenter(new naver.maps.LatLng(e.coord._lat, e.coord._lng))
+
+        axios.get(`http://localhost:3000/search/region`, {
+            params: {
+                query: "police"
+            }
+        })
+        .then((res) => {
+            if(res.data.items.length > 0) {
+
+                res.data.items.forEach((item) => {
+                    let marker = new naver.maps.Marker({
+                        position: new naver.maps.LatLng(convertToCoordinate(item.mapy, 2), convertToCoordinate(item.mapx, 3)),
+                        map: map
+                    })
+
+                    searchMarkerGroup.push(marker);
+                })
+            }
+
+        })
+        .catch((error) => {
+            console.log(error)
+        })
+    }
+
+    /** 
+     * @Example 375628 => 37.5628
+     * @Param coord 좌표
+     * @Param coord 정의할 소수점 위치
+     * */ 
+    function convertToCoordinate(coord, pos) {
+        
+        let numArr = coord.toString().split('')
+
+        let integerNum = numArr.splice(0, pos).join('');
+        let decimalNum = numArr.splice(pos, numArr.length). join('');
+        let convertTocoord = integerNum.toString() + '.' + decimalNum.toString()
+
+        // console.log(parseFloat(convertTocoord))
+
+        return parseFloat(convertTocoord);
+    }
+
+    // naver.maps.Service.geocode(
+    //     {query: '불정로 6'},
+    //     (status, res) => {
+    //         if(res.v2.addresses.length === 0) {
+    //             console.log('검색된거없음')
+    //         } else {
+    //             console.log(res);
+    //         }
+    //     }
+    // )
+    
+
+</script>
