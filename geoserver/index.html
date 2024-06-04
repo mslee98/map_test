@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""/>
+
+     <!-- Make sure you put this AFTER Leaflet's CSS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""></script>
+    <style>
+        #map { height: 1200px; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+    <script>
+        var map = L.map('map').setView([37.5642135, 127.0016985], 7);
+
+        const wmsLayer = L.tileLayer.wms('http://192.168.0.16:8080/geoserver/wms', {
+            layers: [
+                "emap:TN_EX_ASA_A(전제해심)",
+                "emap:TN_EX_SIDEISOBATH_A(주변국해심)",
+                "emap:TN_EX_NBIA_A(주변국내륙)",
+                "emap:TN_EX_LINLNDA_A(한반도내륙)",
+                "emap:TN_EX_TOTALCNT_A(한반도등고)",
+                "emap:TN_EX_BORDERLN_L(국경선)",
+                "emap:TN_EX_SDBDRY_L(한반도시도경계선)",
+                "emap:TN_EX_SGGBDRY_L(한반도시군구경계선)",
+                "emap:TN_EX_NBILN_L(주변국도시경계선)",
+                "emap:TN_FCLTY_ZONE_BNDRY(시설구역경계)",
+                "emap:TN_EX_YONGSANPARK_A(도시공원용산)", //이거 진짜 용산 공원 하나
+                "emap:TN_LKMH(호수및저수지)",
+                "emap:TN_RIVER_BT(하천)",
+                "emap:TN_RIVER_BNDRY(하천)",
+                "emap:TN_ARPGR(보행노면)",
+                "emap:TN_EX_MAINRD_A(면형주요도로)",
+                "emap:TN_EX_NARDA_A(면형국도)",
+                "emap:TN_EX_CITYHWRDA_A(면형도시고속도로)",
+                "emap:TN_EX_HWRDA_A(면형고속도로)",
+                "emap:TN_EX_MAINRDCENL_L(선형주요도로)",
+                "emap:TN_EX_LOCALRDCENL_L(선형지방도)",
+                "emap:TN_EX_NARDCENL_L(선형국도)",
+                "emap:TN_EX_CITYHWRDCENL_L(선형도시고속도로)",//선형도시고속도로의 경우 서울, 부산, 광주 대구 대전에 조금씩 분포
+                "emap:TN_EX_HWRDCENL_L(선형고속도로)",
+                "emap:TN_ARRFC(교통시설물)",
+                "emap:TN_BULD(건물)",//레이어 그룹, 공통 스타일 적용
+                "emap:TN_RLROAD_CTLN(철도노선)",
+                "emap:TN_ARWFC(철도플랫폼)",
+                "emap:TN_EX_SUBWLN_L(지하철노선L12-14)",
+                "emap:TN_EX_SSUBWLN_L(지하철노선L15-18)",
+                "emap:TN_EX_LKNM_P(호수명)",
+                "emap:TN_EX_RVRNM_L(하천명)",
+                "emap:TN_EX_UPNM_L(지하도로명)",
+                "emap:TN_EX_OPNM_L(고가도로명)",
+                "emap:TN_EX_TUNLNM_L(터널명)",
+                "emap:TN_EX_BRDGNM_L(교량명)",
+                "emap:TN_EX_NRDNM_L(일반도로명_대로)",
+                "emap:TN_EX_CITYHWRDCENL_L(도시고속도로명)",
+                "emap:TN_BULD(동번호)", // "emap:TN_EX_BULD(건물번호)", TN_BULD(동번호) 대체
+                "emap:TN_EX_FERRY_L(페리항로)", // 스타일이 지도 줌 확대/축소 레벨별로 되어있는데 정의를 안한 부분이 있는것 같음
+                "emap:TN_EX_SUBWLN_L(지하철노선명_L17-18)",
+                "emap:TN_EX_SUBWLN_L(지하철노선명_L14-16)",
+                "emap:TN_EX_SUBWSTA_L(지하철역명_L15)",
+                "emap:TN_EX_SUBWSTA_L(지하철역명_L16)",
+                "emap:TN_EX_SUBWSTA_L(지하철역명_L17-18)",
+                "emap:TN_EX_EXITNUMBER_P(지하철출구번호)",
+                "emap:TN_EX_NBIMNCITYTT_P(바다명_주변도시명)", //바다명 아직 구현안됨...
+                "emap:TN_EX_NBITT_P(주변국명)",
+                
+                /* 원래 국도 마커 등 여러가지 존재하는데 아직 구현안되있다고 함 할거면 직접 커스텀해서 타일 수정하는 방법밖에는 없어보임 */
+                "emap:TN_EX_FL5_P(고정주기)",
+                "emap:TN_EX_FL6_P(고정주기)",
+                "emap:TN_EX_FL7_P(고정주기)",
+                "emap:TN_EX_FL8_P(고정주기)",
+                "emap:TN_EX_KNL8_P(일반주기)",
+                "emap:TN_EX_FL9_P(고정주기)",
+                "emap:TN_EX_KNL9_P(일반주기)",
+            ],
+            tiled:true,
+            format: 'image/png',
+            transparent: true,
+        }).addTo(map)
+    </script>
+</body>
+</html>
