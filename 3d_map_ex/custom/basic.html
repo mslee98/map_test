@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>personal tracking</title>
+    <style>
+        head, body{
+            width:100%;
+            height:100%;
+            overflow: hidden;
+            top:0;
+            left:0;
+            margin:0;
+            padding:0;
+        }
+        #controls{
+            position: absolute;
+            width:100%;
+        }
+    </style>
+    <script src="../vendor/light-map.js"></script>
+    <script src="../vendor/controls.js"></script>
+</head>
+<body>
+<script>
+
+    // data from : https://www.google.com/maps/timeline
+
+    function lerp ( t, a, b ){ return a + t * ( b - a ); }
+    function norm( t, a, b ){return ( t - a ) / ( b - a );}
+
+    var list = [];
+    var taxis = [];
+
+    var map, ctx, time = 0;
+    window.onload = function(){
+
+        var provider = '';
+        var domains = '';
+        map = new Map( provider, domains, window.innerWidth,window.innerHeight,0,19);
+        map.render = false;
+        map.loadTiles = false;
+
+        map.autoRender = false;
+
+        document.body.appendChild(map.canvas);
+        ctx = map.ctx;
+
+        initialised = false;
+        controls.add( map );
+        controls.addListeners( map.canvas );
+
+        /*
+        //compressing the compacted json 2.5Mo > 400Ko
+        var req = new XMLHttpRequest();
+        req.open( 'GET', "positions.json" );
+        req.onload = function(e){
+
+            var str = e.target.responseText;
+            var json = JSON.parse( str );
+            var raw = json.locations;
+            raw.reverse();//history is stored backwards, this puts it in chronological order
+            var out =   '{"lat" : [ ';
+            raw.forEach( function( v,i ){out += v.latitudeE7 + ',';} );
+            out += '],\n"lng" : [';
+            raw.forEach( function( v,i ){out += v.longitudeE7 + ',';} );
+            out += '],\n"time" : [';
+            raw.forEach( function( v,i ){out += v.timestampMs + ',';} );
+            out += ']}';
+            document.write( out );
+        };
+        req.send( null );
+        //*/
+
+        //convert data to lat/lng
+        var req = new XMLHttpRequest();
+        req.open( 'GET', "compressed.json" );
+        req.onload = function(e){
+
+            json = JSON.parse( e.target.responseText );
+
+            var max = json.lat.length;
+            var div = 1 / 1e7;
+            for( var i = 0; i< max; i++ ) {
+                json.lat[i] *= div;
+                json.lng[i] *= div;
+            }
+
+            map.setView( 48.85680768847502,2.382121558759636,14 );
+            update();
+
+        };
+        req.send( null );
+
+    };
+
+    function getPositionAt( lat, lng, t ) {
+
+        var length = lat.length-1;
+        var i0 = Math.floor( length * t );
+        i0 = i0 < length - 1 ? i0 : length - 1;
+        var i1 = Math.min( i0 + 1, length );
+
+        var delta = 1 / length;
+        var nt =  ( t - ( i0 * delta ) ) / delta;
+        return {lat:lerp( nt, lat[i0], lat[i1] ),
+                lng:lerp( nt, lng[i0], lng[i1] ) };
+    }
+
+    function update(){
+
+        requestAnimationFrame( update );
+
+        ctx.globalAlpha = .25;
+        map.renderTiles(true);
+
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = 5;
+        ctx.lineCap = "square";
+        ctx.lineJoin = "square";
+
+        ctx.beginPath();
+        for( var i = 0; i < json.lat.length; i++ ){
+
+            var xy = map.latLonToPixels( json.lat[i], json.lng[i] );
+            if( xy[0]<0 || xy[0]>map.width )continue;
+            if( xy[1]<0 || xy[1]>map.height )continue;
+            ctx.moveTo( xy[0], xy[1] );
+            ctx.lineTo( xy[0] +.5, xy[1] );
+
+        }
+        ctx.stroke();
+
+    }
+
+
+
+</script>
+
+</body>
+</html>

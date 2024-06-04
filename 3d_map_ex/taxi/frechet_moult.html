@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Frechet</title>
+    <style>
+        head, body{
+            width:100%;
+            height:100%;
+            overflow: hidden;
+            top:0;
+            left:0;
+            margin:0;
+            padding:0;
+        }
+    </style>
+</head>
+<body>
+
+<script>
+
+    var colors = "264653-2a9d8f-e9c46a-f4a261-e76f51".split('-').map( function( v ){ return "#" + v; } );
+//    colors = colors.concat( "f2f3ae-edd382-e7a977-e87461-b38cb4".split('-').map( function( v ){ return parseInt( "0x" + v ); } ) );
+    colors = colors.concat( "114b5f-456990-028090-79b473-70a37f".split('-').map( function( v ){ return "#" + v; } ) );
+
+
+
+
+    function lerp ( t, a, b ){ return a + t * ( b - a ); }
+    function norm( t, a, b ){return ( t - a ) / ( b - a );}
+    function map( t, a0, b0, a1, b1 ){ return lerp( norm( t, a0, b0 ), a1, b1 );}
+
+
+    var canvas = document.createElement( 'canvas' );
+    document.body.appendChild( canvas );
+    var w = canvas.width = window.innerWidth;
+    var h = canvas.height = window.innerHeight;
+    var ctx = canvas.getContext("2d");
+
+    var Point = function(x,y){this.x = x || 0; this.y = y||0;};
+    Point.prototype = {
+        clone : function(){return new Point(this.x, this.y);}
+    };
+
+
+    function getPositionAt( points, t ) {
+
+        var length = points.length-1;
+        var i0 = Math.floor( length * t );
+        i0 = i0 < length - 1 ? i0 : length - 1;
+        var i1 = Math.min( i0 + 1, length );
+
+        var delta = 1 / length;
+        var nt =  ( t - ( i0 * delta ) ) / delta;
+        return {x:lerp( nt, points[i0].x, points[i1].x ),
+            y:lerp( nt, points[i0].y, points[i1].y ) };
+    }
+
+    function distance( p0, p1){
+        var dx = p0.x- p1.x;
+        var dy = p0.y- p1.y;
+        return Math.sqrt( dx*dx + dy*dy );
+    }
+
+    function getCurve( p ){
+        var tmp = [];
+        var inc = 5 + Math.random() * 20;
+        for( var i = 0; i <= w; i+= inc ){
+            p.x = i;
+            p.y += ( Math.random() -.5 ) * 30 + ( Math.random() > .25 ) ? ((Math.random()>.5)?-15:15) : 0;
+            tmp.push(p.clone() );
+        }
+        colors.push( colors.shift() );
+        var col = colors[0];
+        return {
+            points:tmp,
+            score:0,
+            color:col
+        };
+    }
+
+    function renderCurve( curve, p ){
+        ctx.strokeStyle = curve.color;
+        ctx.beginPath();
+        curve.points.forEach(function(p){
+            ctx.lineTo(p.x, p.y );
+        });
+        ctx.stroke();
+        if( p )renderDot( curve.color, p);
+    }
+
+    function renderDot( col, p ){
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 5, 0, Math.PI * 2 );
+        ctx.fill();
+    }
+
+    var t = 0;
+    var margin = 100;
+    var curves = [];
+    var reference;
+    var average;
+
+    function reset(){
+
+        t = 0;
+        reference = getCurve( new Point( margin, h/2 ) );
+        reference.color = "#000";
+        renderCurve( reference );
+
+        average = [];
+        curves = [];
+        for( var i = 0; i < 50; i++ ){
+            var c = getCurve( new Point( margin, h / 4 + h * .5 * Math.random() ) );
+            curves.push( c );
+        }
+    }
+
+    function update(){
+
+        requestAnimationFrame( update );
+
+        t += 0.0025;
+        if( t >= 2 ){
+            reset();
+        }
+
+        ctx.clearRect(0,0,w,h);
+        ctx.lineWidth = 1;
+        reference.cp = getPositionAt( reference.points, t );
+        if( t >= 1 ){//display result
+            curves.sort( function( a, b ){
+                return a.score - b.score;
+            });
+            curves.forEach( function( curve, i ) {
+                ctx.globalAlpha = curve.alpha;
+                renderCurve( curve );
+            });
+
+        }
+        else
+        {//update frechet distances
+            var ap = new Point(0,0);
+            curves.forEach( function( curve ){
+
+                curve.cp = getPositionAt( curve.points, t );
+                ap.x += curve.cp.x;
+                ap.y += curve.cp.y;
+
+                curve.score += distance(reference.cp, curve.cp);
+
+            });
+            ap.x /= curves.length;
+            ap.y /= curves.length;
+            average.push( ap );
+
+            curves.sort( function( a, b ){
+                return a.score - b.score;
+            });
+
+            curves.forEach( function( curve, i ) {
+                ctx.globalAlpha = curve.alpha = 1 - ( i + 1 ) / curves.length;
+                renderCurve(curve, curve.cp );
+
+                ctx.beginPath();
+                ctx.moveTo( curve.cp.x, curve.cp.y );
+                ctx.lineTo( reference.cp.x, reference.cp.y );
+                ctx.stroke();
+
+            });
+
+        }
+
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = 4;
+//        ctx.strokeStyle = "#F00";
+//        ctx.beginPath();
+//        average.forEach( function( p ) {
+//            ctx.lineTo( p.x, p.y );
+//        });
+//        ctx.stroke();
+
+        renderCurve( reference , reference.cp );
+
+        curve = curves[0];
+        renderCurve(curve, curve.cp );
+        ctx.lineWidth = 6;
+
+        ctx.beginPath();
+        ctx.moveTo( curve.cp.x, curve.cp.y );
+        ctx.lineTo( reference.cp.x, reference.cp.y );
+        ctx.stroke();
+
+
+
+    }
+    reset();
+    update();
+
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+
+    https://github.com/nicoptere/cartography
+    
+
+
+
+    <meta charset="UTF-8">
+    <title>map</title>
+</head>
+<body>
+    <script src="light-map.js"></script>
+    <script src="controls.js"></script>
+    <script>
+
+        window.onload = function(){
+
+            var provider = '';
+            var domains = '';
+
+            var map = new Map( provider, domains, window.innerWidth,window.innerHeight,0,19);
+
+            //adds the canvas to the DOM
+            document.body.appendChild(map.canvas);
+
+            //adds controls
+            controls.add( map );
+            controls.addListeners( map.canvas );
+
+            //set view
+            map.setView( 48.85680768847502,2.382121558759636,14 );
+
+            //monitor events
+            map.eventEmitter.on( Map.ON_TILE_LOADED, function(){
+                console.log( "new tile loaded" );
+            });
+
+            map.eventEmitter.on( Map.ON_LOAD_COMPLETE, function(){
+                console.log( "\t all tiles loaded" );
+            });
+
+            map.eventEmitter.on( Map.ON_TEXTURE_UPDATE, function(){
+                console.log( "\t\t texture updated" );
+            });
+        };
+
+    </script>
+</body>
+</html>

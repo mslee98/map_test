@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>kebab: best spot finder</title>
+    <style>
+        head, body{
+            width:100%;
+            height:100%;
+            overflow: hidden;
+            top:0;
+            left:0;
+            margin:0;
+            padding:0;
+        }
+        #controls{
+            position: absolute;
+            width:100%;
+        }
+        canvas{
+            position: absolute;
+        }
+        #bg{
+            opacity:.5;
+            -webkit-filter: grayscale(1);// blur(10px);
+        }
+    </style>
+    <script src="../vendor/light-map.js"></script>
+    <script src="../vendor/controls.js"></script>
+    <script src="alphashapes.min.js"></script>
+    <script src="cdt2d.min.js"></script>
+    <script src="circle.js"></script>
+</head>
+<body>
+<!--<div id="map" style="width:512px; height:512px"></div>-->
+<!--<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBpCRSZOkCaifZO0rYKkxiTQODHGwohRZw&libraries=places"></script>-->
+<script>
+    /*
+     var APIKEY = "AIzaSyBpCRSZOkCaifZO0rYKkxiTQODHGwohRZw";
+     //    <div id="map"></div>
+     //    <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=API_KEY&libraries=places">
+     function initialize() {
+     var beziers = new google.maps.LatLng(43.3412200,3.2140200);
+
+     var map = new google.maps.Map(document.getElementById('map'), {
+     center: beziers,
+     zoom: 15,
+     scrollwheel: false
+     });
+
+     // Specify location, radius and place types for your Places API search.
+     var request = {
+     location: beziers,
+     radius: '5000',
+     keyword: ['kebab']
+     //            type: ['park']
+     };
+
+     // Create the PlaceService and send the request.
+     // Handle the callback with an anonymous function.
+     var service = new google.maps.places.PlacesService(map);
+     service.radarSearch(request, function(results, status) {
+
+     if (status == google.maps.places.PlacesServiceStatus.OK) {
+
+     console.log( results.length );
+     var str = "";
+     for (var i = 0; i < results.length; i++) {
+
+     var place = results[i];
+
+     //                    console.log( place.types );
+     //                    if( place.types.indexOf( "art_gallery" ) != -1 )continue;
+
+     //                    if( place.name.toLowerCase().lastIndexOf( 'jardin' ) != -1
+     //                    ||  place.name.toLowerCase().lastIndexOf( 'parc' ) != -1
+     //                    ||  place.name.toLowerCase().lastIndexOf( 'square' ) != -1
+     //                    ){
+
+     //                        console.log( place )
+
+     str += "["+place.geometry.location.lat() +","+ place.geometry.location.lng()+"],";
+     var marker = new google.maps.Marker({
+     map: map,
+     position: place.geometry.location
+     });
+     //                    }
+     }
+     console.log(  '[', str , ']');
+
+     }
+     });
+     }
+
+     // Run the initialize function when the window has finished loading.
+     google.maps.event.addDomListener(window, 'load', initialize);
+     //*/
+
+    var list = [];
+    var taxis = [];
+
+    var map, bg, ctx, time = 0;
+
+    //nice
+    //    var kebabs =[ [43.695856,7.276423700000009],[43.69961440000001,7.279080600000043],[43.6969451,7.2413993999999775],[43.7087226,7.265850499999942],[43.7061772,7.256255199999941],[43.7196139,7.252124200000026],[43.708349,7.255918199999996],[43.7024254,7.280553300000065],[43.7064419,7.2579160999999885],[43.705145,7.265282100000036],[43.6958435,7.260858800000051],[43.7053962,7.265798099999984],[43.70468090000001,7.265695199999982],[43.69734529999999,7.274352799999974],[43.7062889,7.2678370999999515],[43.69836730000001,7.278042099999993],[43.699517,7.260847300000023],[43.6947321,7.254692999999975],[43.6707293,7.221544600000016],[43.7374686,7.3017194000000245],[43.71178500000001,7.265066499999989],[43.6983369,7.264754400000015],[43.7249394,7.2478329000000485],[43.6982909,7.276830399999994],[43.708941,7.267217999999957],[43.69285409999999,7.243359899999973],[43.668709,7.207524000000035],[43.69571879999999,7.242728400000033],[43.699305,7.287224199999969],[43.6943565,7.238322899999957],[43.7054185,7.327135300000009],[43.705124,7.272354899999982],[43.7074877,7.262901599999964],[43.6866139,7.225643099999957],[43.6973303,7.26261420000003],[43.70862229999999,7.28362889999994],[43.7247917,7.274442799999974],[43.69092859999999,7.244359000000031],[43.6787945,7.227856400000064],[43.679065,7.22836570000004],[43.7059112,7.26674330000003],[43.7070168,7.256757999999991],[43.70645,7.288713599999937],[43.70284969999999,7.265651700000035],[43.697225,7.262293],[43.7012843,7.274469400000044],[43.70305679999999,7.309087999999974],[43.72640599999999,7.244944799999985],[43.6938238,7.242110599999933],[43.6704579,7.210730099999978],[43.7089576,7.2672684000000345],[43.7044542,7.26907170000004],[43.70618200000001,7.26229950000004] ];
+    //    var places = [ [43.6848962,7.209523600000011],[43.69595959999999,7.268229099999985],[43.6693073,7.218157099999985],[43.7202288,7.277087700000038],[43.69750119999999,7.301709699999947],[43.7002621,7.291290200000049],[43.72280179999999,7.262419899999941],[43.6947099,7.259048500000063],[43.7012028,7.284727799999928] ];
+
+    var kebabs = [ [43.3398797,3.2181239000000232],[43.3422401,3.221365600000013],[43.3381805,3.2079782000000705],[43.3476503,3.219337499999938],[43.3368258,3.2179141999999956],[43.3399857,3.216414699999973],[43.345274,3.219571999999971],[43.3400978,3.2181517000000213],[43.34191240000001,3.219225999999935],[43.32961,3.1951139999999896],[43.3411285,3.222030600000039],[43.3470076,3.218532800000048],[43.3397887,3.2198825000000397],[43.34706399999999,3.2199966000000586],[43.34381189999999,3.2153674999999566],[43.3411263,3.218513600000051],[43.3420529,3.216824900000006] ];
+    var places = [ [43.35080999999999,3.2554700000000594],[43.3518536,3.224502199999961],[43.34542759999999,3.2380315999999993],[43.2963898,3.2487760999999864],[43.35186849999999,3.2245077000000038],[43.3009698,3.2203128999999535],[43.318061,3.1733389999999417],[43.33693299999999,3.2434945999999627],[43.352532,3.2167704999999387],[43.3174365,3.174111499999981],[43.2969681,3.2039396000000124],[43.338615,3.2196391999999605],[43.344233,3.215795000000071],[43.31838599999999,3.1731260000000248] ];
+
+    window.onload = function(){
+
+        var w = window.innerWidth;
+        var h = window.innerHeight;
+
+        var provider = '';
+        var domains = '';
+//        provider = 'http://{s}.tile.thunderforest.com/transport/{z}/{x}/{y}.png';
+//        provider = 'http://korona.geog.uni-heidelberg.de/tiles/roadsg/x={x}&y={y}&z={z}';
+        domains = 'abc'.split('');
+        bg = new Map( provider, domains, w,h,0,19);
+
+        bg.canvas.setAttribute( 'id', 'bg' );
+        document.body.appendChild( bg.canvas);
+
+        map = new Map( provider, domains, w,h,0,19);
+        map.autoRender = map.loadTiles = false;
+        document.body.appendChild( map.canvas);
+        ctx = map.ctx;
+
+        controls.add( bg );
+        controls.add( map );
+        controls.addListeners( map.canvas  );
+
+
+        //nice: 43.3398797,3.2181239000000232
+        bg.setView( 43.3412200,3.2140200,  13 );
+        map.setView(43.3412200,3.2140200, 13 );
+        update();
+
+    };
+
+    function update() {
+
+        requestAnimationFrame(update);
+
+
+        ctx.globalAlpha = .25;
+        ctx.clearRect(0, 0, map.width, map.height);
+
+
+        ctx.globalAlpha = .5;
+        process(places, true, false );
+
+        ctx.globalAlpha = 1;
+        process(kebabs, false, true  );
+
+        ctx.strokeStyle = '#999';
+        ctx.lineWidth = 1;
+        centers( kebabs );
+
+
+    }
+
+    function process( coords, delaunay, alphaShapes ){
+
+        var points = [];
+        var w = map.width;
+        var h = map.height;
+
+        var cx = 0;
+        var cy = 0;
+        ctx.strokeStyle = '#000';
+        for( var i = 0; i < coords.length; i++ ){
+
+            var xy = map.latLonToPixels( coords[i][0], coords[i][1] );
+            cx += xy[0];
+            cy += xy[1];
+            points.push( [xy[0]/w, xy[1]/h]);
+
+        }
+
+        //delaunay triangulation
+        if( Boolean( delaunay ) ){
+
+            ctx.globalCompositeOperation = "darken";
+            var result = cdt2d( points );
+            ctx.strokeStyle =
+                ctx.fillStyle = '#0C3';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for ( i = 0; i < result.length; i++) {
+
+                var i0 = result[i][ 0 ];
+                var i1 = result[i][ 1 ];
+                var i2 = result[i][ 2 ];
+
+                ctx.moveTo( points[i0][0] * w, points[i0][1] * h );
+                ctx.lineTo( points[i1][0] * w, points[i1][1] * h );
+                ctx.lineTo( points[i2][0] * w, points[i2][1] * h );
+                ctx.lineTo( points[i0][0] * w, points[i0][1] * h );
+
+            }
+            ctx.stroke();
+
+            points.forEach( function( p ){
+                ctx.beginPath();
+                ctx.arc( p[0] * w, p[1] * h, 10, 0, Math.PI * 2 );
+                ctx.fill();
+            });
+            ctx.globalCompositeOperation = "source-over";
+        }
+
+        //alpha shapes
+        if( Boolean( alphaShapes )) {
+
+            ctx.fillStyle = '#F00';
+            points.forEach( function( p ){
+                ctx.beginPath();
+                ctx.arc( p[0] * w, p[1] * h, 3, 0, Math.PI * 2 );
+                ctx.fill();
+            });
+
+            var steps = 50;
+            var inc = 5;
+            for( var k = inc; k <= steps; k+=inc ){
+
+                var hue = 240 - k/steps * 240;
+                ctx.strokeStyle = ctx.fillStyle = 'hsla( ' + hue + ', '+(100 * k/steps )+'%, 50%, 1 )';
+
+                var alphaHull = alphaShape( k, points);
+                ctx.beginPath();
+                for( i=0; i<alphaHull.length; ++i) {
+                    var cell = alphaHull[i];
+                    for(var j=0; j<cell.length; ++j) {
+                        var p = points[cell[j]];
+                        var q = points[cell [(j+1)%cell.length]];
+                        ctx.moveTo(w * p[0], h * p[1]);
+                        ctx.lineTo(w * q[0], h * q[1]);
+                    }
+                }
+                ctx.stroke();
+            }
+        }
+
+    }
+
+    function centers( coords ){
+
+        var xypoints = [];
+
+        var cx = 0;
+        var cy = 0;
+
+        for( var i = 0; i < coords.length; i++ ){
+
+            var xy = map.latLonToPixels( coords[i][0], coords[i][1] );
+            cx += xy[0];
+            cy += xy[1];
+            xypoints.push( { x:xy[0], y:xy[1] } );
+        }
+
+        //centroid
+        var r = 10;
+        cx /= coords.length;
+        cy /= coords.length;
+
+        ctx.beginPath();
+        ctx.arc( cx, cy, r, 0, Math.PI * 2 );
+        ctx.moveTo( cx, cy-r/2 );
+        ctx.lineTo( cx, cy+r/2 );
+        ctx.moveTo( cx-r/2, cy );
+        ctx.lineTo( cx+r/2, cy );
+        ctx.stroke();
+
+        var c = new Circle().minimumEnclosingCircle( xypoints );
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2 );
+        ctx.stroke();
+        ctx.moveTo(c.x, c.y-r/2 );
+        ctx.lineTo(c.x, c.y+r/2 );
+        ctx.moveTo(c.x-r/2, c.y );
+        ctx.lineTo(c.x+r/2, c.y );
+        ctx.stroke();
+
+
+    }
+
+
+</script>
+
+</body>
+</html>

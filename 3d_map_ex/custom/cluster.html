@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>personal tracking: clustering</title>
+    <style>
+        head, body{
+            width:100%;
+            height:100%;
+            overflow: hidden;
+            top:0;
+            left:0;
+            margin:0;
+            padding:0;
+        }
+        #controls{
+            position: absolute;
+            width:100%;
+        }
+    </style>
+    <script src="../vendor/light-map.js"></script>
+    <script src="../vendor/controls.js"></script>
+    <script src="alphashapes.min.js"></script>
+</head>
+<body>
+<div id="controls">
+    <label for="length">length </label><br><input type="range" id="length" value="50" min="0" max="500" step="1" style="width:100%">
+</div>
+<script>
+
+    // data from : https://www.google.com/maps/timeline
+
+    function lerp ( t, a, b ){ return a + t * ( b - a ); }
+    function norm( t, a, b ){return ( t - a ) / ( b - a );}
+
+    var list = [];
+    var taxis = [];
+
+    var map, ctx, time = 0, coords = [];
+    window.onload = function(){
+
+        var provider = '';
+        var domains = '';
+        map = new Map( provider, domains, window.innerWidth,window.innerHeight,0,23);
+        map.render = false;
+        map.loadTiles = false;
+        map.autoRender = false;
+
+        document.body.appendChild(map.canvas);
+        ctx = map.ctx;
+
+        initialised = false;
+        controls.add( map );
+        controls.addListeners( map.canvas );
+
+        //convert data to lat/lng, save the colsest to paris
+
+        var req = new XMLHttpRequest();
+        req.open( 'GET', "compressed.json" );
+        req.onload = function(e){
+
+            json = JSON.parse( e.target.responseText );
+
+
+            var paris = [48.5, 2.3];
+
+            var max = json.lat.length;
+            var div = 1 / 1e7;
+            for( var i = 0; i< max; i++ ) {
+                json.lat[i] *= div;
+                json.lng[i] *= div;
+
+                if( distance( paris[0], paris[1], json.lat[i], json.lng[i]) < .4 ){
+                    coords.push([json.lat[i],json.lng[i] ] );
+                }
+
+            }
+
+            map.setView( 48.85475432487442,2.417186077211357,23 );
+            update();
+
+        };
+        req.send( null );
+
+    };
+
+    function distance( x0, y0, x1, y1 ){
+        var dx = x1 - x0;
+        var dy = y1 - y0;
+        return Math.sqrt( dx*dx+ dy *dy);
+    }
+
+    function getPositionAt( lat, lng, t ) {
+
+        var length = lat.length-1;
+        var i0 = Math.floor( length * t );
+        i0 = i0 < length - 1 ? i0 : length - 1;
+        var i1 = Math.min( i0 + 1, length );
+
+        var delta = 1 / length;
+        var nt =  ( t - ( i0 * delta ) ) / delta;
+        return {lat:lerp( nt, lat[i0], lat[i1] ),
+                lng:lerp( nt, lng[i0], lng[i1] ) };
+    }
+
+    function update(){
+
+        requestAnimationFrame( update );
+
+//        map.loadTiles = ( map.zoom <= 20 );
+        ctx.globalAlpha = .25;
+        map.renderTiles(true);
+
+        ctx.globalAlpha = 1;
+        
+        var points = [];
+        var w = map.width;
+        var h = map.height;
+
+        ctx.lineWidth = 5;
+        ctx.lineCap = "square";
+        ctx.lineJoin = "square";
+
+        ctx.strokeStyle = '#000';
+        ctx.beginPath();
+        for( var i = 0; i < coords.length; i+=8 ){
+
+            var xy = map.latLonToPixels( coords[i][0], coords[i][1] );
+            if( xy[0]<0 || xy[0]>map.width )continue;
+            if( xy[1]<0 || xy[1]>map.height )continue;
+            ctx.moveTo( xy[0], xy[1] );
+            ctx.lineTo( xy[0] +.5, xy[1] );
+
+
+            points.push( [xy[0]/w, xy[1]/h]);
+
+        }
+        ctx.stroke();
+
+        var alphaHull = alphaShape( document.getElementById("length").value, points);
+        ctx.strokeStyle = '#f00';
+        ctx.beginPath();
+        for( i=0; i<alphaHull.length; ++i) {
+            var cell = alphaHull[i];
+            for(var j=0; j<cell.length; ++j) {
+                var p = points[cell[j]];
+                var q = points[cell [(j+1)%cell.length]];
+                ctx.moveTo(w * p[0], h * p[1]);
+                ctx.lineTo(w * q[0], h * q[1]);
+            }
+        }
+        ctx.fill();
+        ctx.stroke();
+
+
+    }
+
+
+
+</script>
+
+</body>
+</html>

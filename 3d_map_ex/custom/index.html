@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>personal tracking</title>
+    <style>
+        head, body{
+            width:100%;
+            height:100%;
+            overflow: hidden;
+            top:0;
+            left:0;
+            margin:0;
+            padding:0;
+        }
+        #controls{
+            position: absolute;
+            width:100%;
+        }
+    </style>
+    <script src="../vendor/light-map.js"></script>
+    <script src="../vendor/controls.js"></script>
+</head>
+
+<div id="controls">
+    <label for="follow">follow </label><input type="checkbox" id="follow">
+    <input type="button" id="zoom" value="zoom">
+    <label for="length">length </label><input type="range" id="length" value="100" min="1" max="1000" step="1" style="width:10%">
+    <label for="speed">speed </label><input type="range" id="speed" value="0.00000001" min="0.00000001" max=".0001" step="0.00000001" style="width:10%">
+
+    <label name="city" for="lisbon">lisbon </label><input type="radio" name="city"  value="2" id="lisbon" checked >
+    <label name="city" for="paris">paris </label><input type="radio"   name="city" value="10"  id="paris">
+    <label name="city" for="annecy">annecy </label><input type="radio" name="city"  value="21" id="annecy" >
+    <hr>
+</div>
+<script>
+
+    // data from : http://crawdad.org/epfl/mobility/20090224/
+
+    function lerp ( t, a, b ){ return a + t * ( b - a ); }
+    function norm( t, a, b ){return ( t - a ) / ( b - a );}
+
+    var list = [];
+    var taxis = [];
+
+    var map, ctx, initialised, json, colors, start=Number.POSITIVE_INFINITY, end= 0, days, time = 0;
+    window.onload = function(){
+
+        var provider = '';
+        var domains = '';
+//        var provider = 'http://{s}.tile.thunderforest.com/transport/{z}/{x}/{y}.png';
+//        var provider = 'http://korona.geog.uni-heidelberg.de/tiles/roadsg/x={x}&y={y}&z={z}';
+//        var provider = '../proxy.php?url=http://dem-grabber/elasticterrain/{z}/{x}/{y}.png';
+//        var domains = 'abc'.split('');
+        map = new Map( provider, domains, window.innerWidth,window.innerHeight,0,18);
+        map.render = false;
+        map.loadTiles = false;
+        document.body.appendChild(map.canvas);
+        ctx = map.ctx;
+
+        initialised = false;
+        controls.add( map );
+        controls.addListeners( map.canvas, update, update,update, update );
+
+//        /*
+        //compressing the compacted json 2.5Mo > 400Ko
+        var req = new XMLHttpRequest();
+        req.open( 'GET', "compact.json" );
+        req.onload = function(e){
+
+            var str = e.target.responseText;
+            var json = JSON.parse( str );
+            var raw = json.locations;
+            var out =   '{"lat" : [ ';
+            raw.forEach( function( v,i ){out += v.la + ',';} );
+            out += '],\n"lng" : [';
+            raw.forEach( function( v,i ){out += v.lo + ',';} );
+            out += '],\n"time" : [';
+            raw.forEach( function( v,i ){out += v.t + ',';} );
+            out += ']}';
+            document.write( out );
+        };
+        req.send( null );
+        //*/
+
+        var req = new XMLHttpRequest();
+        req.open( 'GET', "compressed.json" );
+        req.onload = function(e){
+
+            json = JSON.parse( e.target.responseText );
+
+            json.lat.reverse();
+            json.lng.reverse();
+            json.time.reverse();
+
+            var max = json.lat.length;
+            var div = 1 / 1e7;
+
+            //center
+            var avglat = 0;
+            var avglng = 0;
+            for( var i = 0; i< max; i++ ){
+
+                avglat += json.lat[i] *= div;
+                avglng += json.lng[i] *= div;
+
+                start = Math.min( start, json.time[i] );
+                end = Math.max( end, json.time[i] );
+
+            }
+            avglat /= max;
+            avglng /= max;
+
+            var dayLength = 1000 * 60 * 60 * 24;
+            var day = new Date( json.time[ 0 ] );
+            last = day;
+            day.time = json.time[0];
+            days = [ day ];
+            for( i = 1; i < max; i++){
+
+                day = new Date( json.time[i] );
+
+                if( day.getDay() != last.getDay() ){
+                    day.time = json.time[i];
+                    days.push( day );
+                    last = day;
+                }
+            }
+
+
+
+
+            var items = document.querySelectorAll('input[name="city"]');
+            for( i = 0; i< items.length; i++){
+                items[i].onmousedown = function(e){
+                    time = norm( days[e.target.value].time, start, end );
+                }
+            }
+
+            var zoom = document.getElementById('zoom');
+            zoom.onmousedown = function(){
+                map.zoom = map.zoom == 6 ? 12 : 6;
+            };
+
+            map.setView( avglat, avglng, 6 );
+            update();
+
+        };
+        req.send( null );
+    };
+
+    function getPositionAt( lat, lng, t ) {
+
+        var length = lat.length-1;
+        var i0 = Math.floor( length * t );
+        i0 = i0 < length - 1 ? i0 : length - 1;
+        var i1 = Math.min( i0 + 1, length );
+
+        var delta = 1 / length;
+        var nt =  ( t - ( i0 * delta ) ) / delta;
+        return {lat:lerp( nt, lat[i0], lat[i1] ),
+                lng:lerp( nt, lng[i0], lng[i1] ) };
+    }
+
+    function update(){
+
+        requestAnimationFrame( update );
+
+        ctx.clearRect(0,0, map.width, map.height );
+
+        time += parseFloat( document.getElementById('speed').value );
+        time %= 1;
+
+
+        var current = ~~( json.lat.length * time );
+        ctx.globalAlpha = .5;
+        if( document.getElementById('follow').checked  ){
+            map.latitude += ( json.lat[current] - map.latitude ) * .1;
+            map.longitude += ( json.lng[current] - map.longitude ) * .1;
+        }
+        map.setView();
+
+        var length = parseFloat( document.getElementById('length').value );
+        ctx.globalAlpha = 1;
+        for( var i = current-length; i < current; i++ ){
+
+
+            var a = norm( id, current-length, current-1 );
+            ctx.globalAlpha = a;
+            ctx.lineWidth = a * 3;
+
+            var id = i;
+            if( id < 0 )id = 0;
+            ctx.beginPath();
+            var xy = map.latLonToPixels( json.lat[id], json.lng[id] );
+            ctx.moveTo( xy[0], xy[1] );
+
+            xy = map.latLonToPixels( json.lat[id-1], json.lng[id-1] );
+            ctx.lineTo( xy[0], xy[1] );
+            ctx.stroke();
+
+        }
+
+
+        ctx.font = '30px Verdana';
+        var day = new Date( json.time[ current ] );
+        ctx.fillText( day, 10, map.height -50 );
+
+
+    }
+
+
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Frechet</title>
+    <style>
+        head, body{
+            width:100%;
+            height:100%;
+            overflow: hidden;
+            top:0;
+            left:0;
+            margin:0;
+            padding:0;
+        }
+    </style>
+</head>
+<body>
+
+<script>
+
+
+
+    function lerp ( t, a, b ){ return a + t * ( b - a ); }
+    function norm( t, a, b ){return ( t - a ) / ( b - a );}
+    function map( t, a0, b0, a1, b1 ){ return lerp( norm( t, a0, b0 ), a1, b1 );}
+
+
+    var canvas = document.createElement( 'canvas' );
+    document.body.appendChild( canvas );
+    var w = canvas.width = window.innerWidth;
+    var h = canvas.height = window.innerHeight;
+    var ctx = canvas.getContext("2d");
+
+    var Point = function(x,y){this.x = x || 0; this.y = y||0;}
+    Point.prototype = {
+        clone : function(){return new Point(this.x, this.y);}
+    };
+
+    function getPositionAt( points, t ) {
+
+        var length = points.length-1;
+        var i0 = Math.floor( length * t );
+        i0 = i0 < length - 1 ? i0 : length - 1;
+        var i1 = Math.min( i0 + 1, length );
+
+        var delta = 1 / length;
+        var nt =  ( t - ( i0 * delta ) ) / delta;
+        return {x:lerp( nt, points[i0].x, points[i1].x ),
+            y:lerp( nt, points[i0].y, points[i1].y ) };
+    }
+
+    function distance( p0, p1){
+        var dx = p0.x- p1.x;
+        var dy = p0.y- p1.y;
+        return Math.sqrt( dx*dx + dy*dy );
+    }
+
+    function getCurve( p ){
+        var tmp = [];
+        for( var i = margin; i < w-margin; i+= 5 + Math.random() * 20 ){
+            p.x = i;
+            p.y += ( Math.random() -.5 ) * 30;
+            tmp.push(p.clone() );
+        }
+        return tmp;
+    }
+
+    function renderCurve( col, curve, p ){
+        ctx.strokeStyle = col;
+        ctx.beginPath();
+        curve.forEach(function(p){
+            ctx.lineTo(p.x, p.y );
+        });
+        ctx.stroke();
+        if( p )renderDot(col, p);
+    }
+
+    function renderDot( col, p ){
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 10, 0, Math.PI * 2 );
+        ctx.fill();
+    }
+
+    var t = 0;
+    var margin = 100;
+
+    var reference,curve0,curve1, score0, score1;
+
+    function reset(){
+        t = 0;
+        reference = getCurve( new Point( margin, h/2 ) );
+        curve0 = getCurve( new Point( margin, h/4 ) );
+        curve1 = getCurve( new Point( margin, h/4 * 3 ) );
+
+        renderCurve( "#000", reference  );
+        renderCurve( "#C00", curve0 );
+        renderCurve( "#06C", curve1  );
+
+        score0 = 0;
+        score1 = 0;
+    }
+
+    function update(){
+
+        requestAnimationFrame( update );
+        t += 0.005;
+        if( t >= 1 ){
+            reset();
+        }
+        ctx.clearRect(0,0,w,h);
+        ctx.lineWidth = 4;
+        var p = getPositionAt( reference, t );
+        var c0 = getPositionAt( curve0, t );
+        var c1 = getPositionAt( curve1, t );
+
+        //frechet
+        var d0 = distance(p, c0);
+        score0 += d0;
+        var d1 = distance(p, c1);
+        score1 += d1;
+
+        ctx.fillStyle = "#FC0";
+        ctx.globalAlpha = .25;
+        if( score0 < score1 )ctx.fillRect( 0,0,w, h/2 );
+        else ctx.fillRect( 0,h/2,w, h/2 );
+        ctx.globalAlpha = 1;
+
+
+        ctx.strokeStyle = d0 > d1 ? "#C00" : "#0C0";
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(c0.x, c0.y);
+        ctx.stroke();
+
+        ctx.strokeStyle = d1 > d0 ? "#C00" : "#0C0";
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(c1.x, c1.y);
+        ctx.stroke();
+
+        renderCurve( "#000", reference , p );
+        renderCurve( "#C00", curve0, c0 );
+        renderCurve( "#06C", curve1 , c1 );
+
+    }
+    reset();
+    update();
+
+
+</script>
+
+</body>
+</html>

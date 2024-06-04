@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+<head>
+
+</head>
+<body>
+<script type="text/javascript" src="exif.js"></script>
+<script src="degreesToDecimal.js"></script>
+<script src="light-map.js"></script>
+
+
+<script>
+
+
+
+
+    var size = 2048;
+    var provider = 'http://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.png';
+    var domains = 'abcd'.split('');
+
+    var map = new Map(  provider, domains, size, size, 0, 18 );
+    var lat = 38.7166700	;
+    var lng = -9.1333300;
+    var zl = 16;
+    map.setView( lat, lng, zl );
+
+
+    var texture = document.createElement("canvas");
+    document.body.appendChild(texture);
+    texture.width = texture.height = 2048;
+    var tcx = texture.getContext( "2d" );
+
+    var coords = [];
+    function process( img ){
+
+        EXIF.getData( img, function() {
+
+            var tags = EXIF.getAllTags( img );
+            if( tags.GPSLatitude != null && tags.GPSLongitude != null ){
+
+                var latsign = 1;
+                if( tags.GPSLatitudeRef.charCodeAt(0) == "S".charCodeAt(0) ) latsign *= -1;
+
+                var lngsign = 1;
+                if( tags.GPSLongitudeRef.charCodeAt(0) == "W".charCodeAt(0) ) lngsign *= -1;
+
+                var dtd = degreesToDecimal(     parseFloat( tags.GPSLatitude[0] ) * latsign,
+                                                parseFloat( tags.GPSLatitude[1] ),
+                                                parseFloat( tags.GPSLatitude[2] ),
+
+                                                parseFloat( tags.GPSLongitude[0] ) * lngsign,
+                                                parseFloat( tags.GPSLongitude[1] ),
+                                                parseFloat( tags.GPSLongitude[2] ) );
+
+
+                lat = dtd[0];
+                lng = dtd[1];
+
+                var size = Math.round( Math.sqrt( 74 ) );
+
+                var x = parseInt( coords.length % size );
+                var y = parseInt( coords.length / size );
+                console.log( x, y );
+                tcx.drawImage( img, x *  2048 / size, y *  2048 / size, 2048 / size, 2048 / size );
+
+                console.log( size );
+                coords.push( [ lat, lng] );
+            }
+            loadNext(images);
+
+        });
+    }
+
+
+
+    function loadNext( images ){
+
+        if( images.length == 0 ){
+            console.log( JSON.stringify(coords) );
+            console.log( coords.length );
+
+            coords.forEach( function(c){
+
+                var lat = c[0];
+                var lng = c[1];
+                var xy = map.latLonToPixels(  lat,lng, map.zoom );
+
+
+                map.ctx.fillStyle = "#f00";
+                map.ctx.beginPath();
+                map.ctx.arc(xy[0], xy[1], 4, 0, Math.PI * 2 );
+                map.ctx.fill();
+            });
+
+            return
+        }
+
+        var img = new Image();
+        img.onload = function(e)
+        {
+            process(e.target );
+        };
+        img.src = '512/'+images[0];
+        images.shift();
+    }
+    var images = ['20160207_112806.jpg','20160208_105847.jpg','20160208_111458.jpg','20160208_111544.jpg','20160208_111744.jpg','20160208_120732.jpg','20160208_121115.jpg','20160208_121446.jpg','20160208_121524.jpg','20160208_121549.jpg','20160208_121719.jpg','20160208_150502.jpg','20160208_150523_001.jpg','20160208_150624.jpg','20160208_151423.jpg','20160208_151850.jpg','20160208_152020.jpg','20160208_152045(0).jpg','20160208_152126.jpg','20160208_152149.jpg','20160208_152213.jpg','20160208_163141.jpg','20160208_163719.jpg','20160208_172805.jpg','20160208_173525.jpg','20160208_173803.jpg','20160208_174232.jpg','20160208_174245.jpg','20160209_115414.jpg','20160209_115431.jpg','20160209_120501.jpg','20160209_124131.jpg','20160209_135631.jpg','20160209_140036.jpg','20160209_225732.jpg','20160209_225922.jpg','20160209_225936.jpg','20160210_103002.jpg','20160210_115403.jpg','20160210_115532.jpg','20160210_132741.jpg','20160210_141630.jpg','20160210_143130.jpg','20160210_153329.jpg','20160210_170653.jpg','20160210_174907.jpg','20160210_174916.jpg','20160210_175244.jpg','20160211_110805.jpg','20160211_110819.jpg','20160211_124959.jpg','20160211_130148.jpg','20160211_135239.jpg','20160211_135246.jpg','20160211_135310.jpg','20160211_135320.jpg','20160211_135403.jpg','20160211_135424.jpg','20160211_142206.jpg','20160211_162336.jpg','20160211_164717.jpg','20160211_164918.jpg','20160211_164929.jpg','20160211_165008.jpg','20160211_165407.jpg','20160211_165530.jpg','20160211_171606.jpg','20160211_171958.jpg','20160211_172019.jpg','20160211_172059.jpg','20160211_172141.jpg','20160211_172208.jpg','20160211_172352.jpg','20160212_122600.jpg','20160213_123109.jpg','20160214_115847.jpg','20160214_120054.jpg','20160214_120102.jpg','20160214_120127.jpg','20160214_120348.jpg','20160214_123036.jpg','20160214_123201.jpg','20160214_123249.jpg','20160214_123328.jpg','20160214_124031.jpg','20160214_124112.jpg','20160214_135623.jpg','20160214_140110.jpg','20160214_140115.jpg','20160214_140209.jpg','20160214_163757.jpg','20160214_173411.jpg','20160214_173507.jpg','20160214_174258.jpg','20160214_174408.jpg','20160214_174602.jpg','20160214_180823.jpg','20160214_181108.jpg','20160214_181220.jpg','20160214_181312.jpg'];
+    loadNext(images);
+
+
+</script>
+
+
+
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>map</title>
+</head>
+<body>
+    <script src="light-map.js"></script>
+    <script src="controls.js"></script>
+    <!--triangulation lib-->
+    <script src="cdt2d.min.js"></script>
+    <script>
+
+
+        var map, ctx, polylines;
+        var colors = ["#FFCC00", "#CC0000", "#00CC99", "#0066CC" ];
+        window.onload = function(){
+
+            var provider = '';
+            var domains = '';
+
+            map = new Map( provider, domains, 512,512,0,19);
+            map.autoRender = false;
+
+            //adds the canvas to the DOM
+            document.body.appendChild(map.canvas);
+
+            //gets the 2D context of the canvas element
+            ctx = map.ctx;
+
+            //adds controls
+            controls.add( map );
+            controls.addListeners( map.canvas );
+
+            //set view
+            var lat = 48.85680768847502;
+            var lng = 2.382121558759636;
+            lat = 49.20685965504833;
+            lng = 2.5831550292968415;
+            map.setView( lat,lng,17 );
+
+            //wait for a tile to load
+            polylines = [];
+            map.eventEmitter.on( Map.ON_TILE_LOADED, function( t ){
+
+
+                var x = t.tx;
+                var y = t.ty;
+                var z = map.zoom;
+
+                var req = new XMLHttpRequest();
+                req.onload = function(e)
+                {
+                    //what to do with the JSON contents
+                    var json = JSON.parse(e.target.responseText );
+                    build( t, json );
+                };
+
+                var url = 'http://tile.mapzen.com/mapzen/vector/v1/buildings/'+z+'/'+x+'/'+y+'.json?api_key=mapzen-foW3wh2';
+                req.open( "GET", url );
+                req.send();
+
+            });
+
+            update();
+        };
+
+        var buildingIds = [];
+        var buildings = [];
+
+        function build( tile, json ) {
+
+            // the JSON tile content
+//            console .log( tile.key, json );
+//            return;
+
+            json.features.forEach( function( feat ) {
+
+                if( buildingIds.indexOf( feat.properties.id ) != -1 )return;
+
+                //console.log(feat.geometry.coordinates);
+                try{
+
+                    if( feat.geometry.coordinates[0].length == 1 ){
+                        console.log( "point" )
+                        return;
+                    }
+
+                    feat.geometry.coordinates.forEach(function (coordinates) {
+
+                        var line = [];
+                        coordinates.forEach(function (coords) {
+
+                            line.push( coords );
+
+                        });
+                        polylines.push( line );
+                        buildings.push( line );
+
+                    });
+
+
+                    console.log( feat.properties );
+                    buildingIds.push( feat.properties.id );
+                }catch(e){
+                    //nope...
+                }
+            });
+            update();
+        }
+
+        function update(){
+
+//            requestAnimationFrame( update );
+            ctx.globalAlpha = .25;
+            map.renderTiles(true);
+
+            //render the polyines if any
+            buildings.forEach( function( line, i ){
+
+                ctx.fillStyle = colors[ i % colors.length ];
+                ctx.globalAlpha = 1;
+                ctx.beginPath();
+                line.forEach(function( p ){
+
+                    var lng = p[0];
+                    var lat = p[1];
+                    var xy = map.latLonToPixels(lat, lng, map.zoom);
+
+                    ctx.lineTo( xy[0], xy[1] );
+
+                });
+                ctx.fill();
+                ctx.stroke();
+
+            } );
+
+
+        }
+
+    </script>
+</body>
+</html>

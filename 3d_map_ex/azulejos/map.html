@@ -1,0 +1,145 @@
+<!doctype html>
+<html>
+<head>
+    <style>
+        head, body{
+            width:100%;
+            height:100%;
+            overflow: hidden;
+            top:0;
+            left:0;
+            margin:0;
+            padding:0;
+        }
+    </style>
+
+    <script src="degreesToDecimal.js"></script>
+    <script src="light-map.js"></script>
+    <script src="controls.js"></script>
+    <script src="rhill-voronoi-core.js"></script>
+
+</head>
+<body>
+<script>
+
+    var provider = 'http://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.png';
+    var domains = 'abcd'.split('');
+
+    var coords = [];
+    var lastLat, lastLng, lastZoom;
+    var map, indices, diagram;
+    window.onload = function()
+    {
+        //create map
+        map = new Map(  provider, domains, window.innerWidth, window.innerHeight, 13, 17 );
+        document.body.appendChild(map.canvas);
+
+        //lisbon
+        var lat = lastLat = 38.713321524316484;
+        var lng = lastLng = -9.13916648681642;
+        var zl = 17;
+        map.setView( lat, lng, zl );
+
+        //map controls
+        controls.add(map);
+        controls.addListeners( map.canvas );
+
+
+        var req = new XMLHttpRequest();
+        req.onload = function(e){
+
+            coords = JSON.parse(e.target.responseText );
+
+            var vertices = [];
+            var minx = Number.POSITIVE_INFINITY;
+            var miny = Number.POSITIVE_INFINITY;
+            var maxx = Number.NEGATIVE_INFINITY;
+            var maxy = Number.NEGATIVE_INFINITY;
+
+            coords.forEach( function(c) {
+
+                minx = Math.min( c[2], minx );
+                maxx = Math.max( c[2], maxx );
+                miny = Math.min( c[1], miny );
+                maxy = Math.max( c[1], maxy );
+
+                vertices.push({x:c[2], y:c[1]} );
+            });
+
+            var margin = .25;
+            var bbox = {xl: minx - margin, xr: maxx + margin, yt: miny - margin, yb: maxy + margin };
+            var voro = new Voronoi();
+            diagram = voro.compute( vertices, bbox );
+            diagram.cells.forEach( function(c, i){
+                c.halfedges.sort( function( a,b ){return a.angle - b.angle;});
+                c.color ="hsl( " + ( 360 * i / diagram.cells.length ) + ", 50%, 50% )";
+            });
+            update(true);
+
+        };
+        req.open('GET', 'files.txt');
+        req.send();
+
+    };
+
+    function angle(a,b){
+        return Math.atan2(a.y- b.y, a.x- b.x );
+    }
+
+    function update(force)
+    {
+        requestAnimationFrame(update);
+
+        if( force || lastLat != map.latitude || lastLng != map.longitude || lastZoom != map.zoom ){
+
+            map.renderTiles();
+
+            map.ctx.fillStyle = "#FFF";
+            map.ctx.strokeStyle = "#FFF";
+            diagram.cells.forEach(function(c){
+
+
+                var lat = c.site.y;
+                var lng = c.site.x;
+                var xy = map.latLonToPixels(  lat,lng, map.zoom );
+
+                map.ctx.globalCompositeOperation = "darken";
+                map.ctx.beginPath();
+
+                map.ctx.fillStyle = c.color;
+                c.halfedges.forEach(function( he ){
+
+                    var ps = [he.edge.va, he.edge.vb ];
+                    ps.sort( function( a,b ){ return angle(c.site, a) - angle(c.site, b); });
+
+                    var lat = ps[0].y;
+                    var lng = ps[0].x;
+                    var xy = map.latLonToPixels(  lat,lng, map.zoom );
+                    map.ctx.lineTo( xy[0], xy[1] );
+
+                    lat = ps[1].y;
+                    lng = ps[1].x;
+                    xy = map.latLonToPixels(  lat,lng, map.zoom );
+                    map.ctx.lineTo( xy[0], xy[1] );
+
+                });
+
+                map.ctx.fill();
+                map.ctx.globalCompositeOperation = "source-over";
+                map.ctx.stroke();
+
+                map.ctx.fillStyle = "#FFF";
+                map.ctx.beginPath();
+                map.ctx.arc(xy[0], xy[1], 3, 0, Math.PI * 2 );
+                map.ctx.fill();
+
+            });
+
+            lastLat = map.latitude;
+            lastLng = map.longitude;
+            lastZoom = map.zoom;
+        }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!doctype html>
+<html>
+<head>
+    <style>
+        head, body{
+            width:100%;
+            height:100%;
+            overflow: hidden;
+            top:0;
+            left:0;
+            margin:0;
+            padding:0;
+        }
+    </style>
+
+    <script src="degreesToDecimal.js"></script>
+    <script src="light-map.js"></script>
+    <script src="controls.js"></script>
+    <script src="rhill-voronoi-core.js"></script>
+
+</head>
+<body>
+<script>
+
+    var provider = 'http://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.png';
+    var domains = 'abcd'.split('');
+
+    var coords = [[38.728056,-9.135],[38.717778,-9.138889],[38.716944,-9.133611],[38.718056,-9.133056],[38.714722,-9.130833],[38.714722,-9.1325],[38.714722,-9.1325],[38.713611,-9.134722],[38.713333,-9.134444],[38.711389,-9.132778],[38.711389,-9.132778],[38.711389,-9.132778],[38.712222,-9.132778],[38.711111,-9.1325],[38.710556,-9.132222],[38.710833,-9.132222],[38.710556,-9.131944],[38.710556,-9.131667],[38.715278,-9.130556],[38.719722,-9.129444],[38.720556,-9.13],[38.722222,-9.130556],[38.711667,-9.138333],[38.710556,-9.138056],[38.708056,-9.140833],[38.708889,-9.150556],[38.707222,-9.143056],[38.713333,-9.145],[38.713333,-9.144722],[38.713333,-9.144444],[38.716111,-9.140278],[38.7075,-9.143056],[38.6975,-9.203611],[38.709722,-9.137222],[38.711389,-9.144167],[38.711389,-9.144167],[38.711389,-9.146389],[38.711389,-9.144167],[38.711667,-9.141944],[38.715556,-9.135],[38.715556,-9.135],[38.715278,-9.135],[38.715278,-9.134722],[38.713333,-9.134722],[38.712778,-9.130278],[38.712778,-9.13],[38.712778,-9.129722],[38.712778,-9.13],[38.713056,-9.128611],[38.709444,-9.130833],[38.709444,-9.130833],[38.709444,-9.130833],[38.709444,-9.130833],[38.709444,-9.130833],[38.710833,-9.145556],[38.714444,-9.145833],[38.714444,-9.145833],[38.717778,-9.146111],[38.7175,-9.145833],[38.7175,-9.145833],[38.707222,-9.141111],[38.706944,-9.144444],[38.706944,-9.144444],[38.707222,-9.144722],[38.712778,-9.137222],[38.711944,-9.137222],[38.711944,-9.137222],[38.713056,-9.136389],[38.712778,-9.136111],[38.712778,-9.135556],[38.714167,-9.135278],[38.713889,-9.135833],[38.714167,-9.135833],[38.714444,-9.136111]];
+    var lastLat, lastLng, lastZoom;
+
+    //create map
+    var map = new Map(  provider, domains, window.innerWidth, window.innerHeight, 13, 18 );
+    document.body.appendChild(map.canvas);
+
+    //lisbon
+    var lat = lastLat = 38.713321524316484;
+    var lng = lastLng = -9.13916648681642;
+    var zl = 17;
+    map.setView( lat, lng, zl );
+
+    var diagram;
+
+    //texture
+    var texture = document.createElement("canvas");
+    texture.width = texture.height = 2048;
+    var tcx = texture.getContext( "2d" );
+
+    var textureSize = parseInt( 2048 / 9 );
+    var patternCanvas = document.createElement("canvas");
+    patternCanvas.width = patternCanvas.height = textureSize;
+    var patternContext = patternCanvas.getContext("2d");
+    var pattern;
+    var patterns = [];
+
+    var img = new Image();
+    img.onload = function( e ){
+        tcx.drawImage(e.target, 0, 0);
+        for( var i = 0; i  < 74; i++  ){
+            var x = ( i % 9 ) * textureSize;
+            var y = parseInt( i / 9 ) * textureSize;
+            patternContext.drawImage( texture, x, y, textureSize, textureSize, 0, 0, textureSize, textureSize );
+            patterns.push( map.ctx.createPattern( patternCanvas,"repeat") );
+        }
+        init();
+    };
+
+    window.onload = function() {
+        img.src = "texture_9_9.png";
+    };
+
+    function init(){
+
+        //map controls
+        controls.add(map);
+        controls.addListeners( map.canvas );
+
+        var vertices = [];
+        var minx = Number.POSITIVE_INFINITY;
+        var miny = Number.POSITIVE_INFINITY;
+        var maxx = Number.NEGATIVE_INFINITY;
+        var maxy = Number.NEGATIVE_INFINITY;
+
+        coords.forEach( function(c) {
+
+            minx = Math.min( c[1], minx );
+            maxx = Math.max( c[1], maxx );
+            miny = Math.min( c[0], miny );
+            maxy = Math.max( c[0], maxy );
+
+            vertices.push({x:c[1], y:c[0]} );
+        });
+
+        var margin = .25;
+        var bbox = {xl: minx - margin, xr: maxx + margin, yt: miny - margin, yb: maxy + margin };
+        var voro = new Voronoi();
+        diagram = voro.compute( vertices, bbox );
+        diagram.cells.forEach( function(c, i){
+            c.halfedges.sort( function( a,b ){return a.angle - b.angle;});
+            c.img = getImageId( c.site.x, c.site.y, coords );
+
+        });
+        update(true);
+
+
+    };
+
+    function lerp ( t, a, b ){ return a + t * ( b - a ); }
+    function norm( t, a, b ){return ( t - a ) / ( b - a );}
+    function _map( t, a0, b0, a1, b1 ){ return lerp( norm( t, a0, b0 ), a1, b1 );}
+    function getImageId( x, y, coords ){
+        var id = "";
+        coords.forEach( function( c, i ){
+            if( x == c[1] && y == c[0] ){
+                id = i;
+            }
+        });
+        return id;
+    };
+
+    function angle(a,b){
+        return Math.atan2(a.y- b.y, a.x- b.x );
+    }
+
+    function update(force)
+    {
+        requestAnimationFrame(update);
+
+        if( force || lastLat != map.latitude || lastLng != map.longitude || lastZoom != map.zoom ){
+
+            map.ctx.restore();
+
+            map.ctx.globalCompositeOperation = "source-over";
+            map.renderTiles(true);
+
+            map.ctx.globalCompositeOperation = "difference";
+            map.ctx.fillStyle = "#FFF";
+            map.ctx.fillRect(0,0,map.canvas.width, map.canvas.height );
+
+            diagram.cells.forEach(function(c){
+
+
+                var lat = c.site.y;
+                var lng = c.site.x;
+                var o = map.latLonToPixels(  lat,lng, map.zoom );
+
+                map.ctx.restore();
+                map.ctx.save();
+                map.ctx.translate(o[0], o[1]);
+
+                map.ctx.globalCompositeOperation = "lighten";
+                map.ctx.beginPath();
+                c.halfedges.forEach(function( he ){
+
+                    var ps = [he.edge.va, he.edge.vb ];
+                    ps.sort( function( a,b ){ return angle(c.site, a) - angle(c.site, b); });
+
+                    var lat = ps[0].y;
+                    var lng = ps[0].x;
+                    var xy = map.latLonToPixels(  lat,lng, map.zoom );
+                    map.ctx.lineTo( xy[0] - o[0], xy[1] - o[1] );
+
+                    lat = ps[1].y;
+                    lng = ps[1].x;
+                    xy = map.latLonToPixels(  lat,lng, map.zoom );
+                    map.ctx.lineTo( xy[0] - o[0], xy[1] - o[1] );
+
+                });
+
+                map.ctx.fillStyle = patterns[c.img ];
+                map.ctx.fill();
+
+                map.ctx.globalCompositeOperation = "source-over";
+                map.ctx.strokeStyle = "#000";
+                map.ctx.lineWidth = _map( map.zoom, map.minZoom, map.maxZoom, 2, 5 );
+                map.ctx.stroke();
+
+            });
+
+
+            lastLat = map.latitude;
+            lastLng = map.longitude;
+            lastZoom = map.zoom;
+        }
+    }
+</script>
+</body>
+</html>

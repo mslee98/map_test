@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>map</title>
+</head>
+<body>
+    <script src="light-map.js"></script>
+    <script src="controls.js"></script>
+    <script>
+
+
+        var map, ctx, points;
+        window.onload = function(){
+
+            var provider = '';
+            var domains = '';
+
+            map = new Map( provider, domains, 512,512,0,19);
+            map.autoRender = false;
+
+            //adds the canvas to the DOM
+            document.body.appendChild(map.canvas);
+
+            //gets the 2D context of the canvas element
+            ctx = map.ctx;
+
+            //adds controls
+            controls.add( map );
+            controls.addListeners( map.canvas );
+
+            //set view
+            var lat = 48.85680768847502;
+            var lng = 2.382121558759636;
+            map.setView( lat,lng,14 );
+
+            //generate some random coords around the center of the view
+            var scale = 0.001;
+            points = [];
+            for( var i = 0; i < 100; i++ ){
+                points.push( [
+                    lat + (Math.random()-.5) * scale,
+                    lng + (Math.random()-.5) * scale
+                ] );
+            }
+
+            update();
+        };
+
+        function update(){
+
+            requestAnimationFrame( update );
+            ctx.globalAlpha = .25;
+            map.renderTiles(true);
+
+            ctx.globalAlpha = 1;
+            ctx.lineWidth = 5;
+            ctx.lineCap = "square";
+            ctx.lineJoin = "square";
+
+            ctx.beginPath();
+            for( var i = 0; i < points.length; i++ ){
+
+                //converts lat/lng to pixel coordinates
+                var latlng = points[i];
+
+                var xy = map.latLonToPixels( latlng[ 0 ], latlng[ 1 ] );
+
+                //make sure we're in the view
+                if( xy[0]<0 || xy[0]>map.width )continue;
+                if( xy[1]<0 || xy[1]>map.height )continue;
+
+                //draw the point
+                ctx.moveTo( xy[0], xy[1] );
+                ctx.lineTo( xy[0] +.5, xy[1] );
+
+            }
+            ctx.stroke();
+
+        }
+
+    </script>
+</body>
+</html>
