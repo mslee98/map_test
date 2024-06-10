@@ -28,7 +28,7 @@
 # 3D 지도 테스트
 
 ### Qgis-three.js pulgin
-* Qgis Three.js pulgin 사용 데이터 불러오는데 너무 오래걸림, 데이터는 국가오픈마켓에서 구할 수 있음
+* Qgis Three.js pulgin 사용 데이터 불러오는데 너무 오래걸림, 데이터는 국가오픈마켓에서 구할 수 있으며 "대전광역시"만을 표현
 
 ### Nextzen GeoJson 데이터 
 * 위도 경도에 맞게 GeoJson 데이터를 받아와서 각 Feature(건물, 도로 등) 그림, 건물의 높이 데이터를 받아올 순 없어서 확인해봐야하며
